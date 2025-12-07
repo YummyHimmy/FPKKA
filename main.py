@@ -46,7 +46,7 @@ wall_sealed   = load_asset("Wall_Sealed.png")
 
 manuscript_img = load_asset("Manuscript.png")
 
-# Fallback: jika asset hilang/kirzzzzzzz
+# Fallback: jika asset hilang/korup
 if floor_regular is None:
     floor_regular = solid_surface((180, 160, 120))
 if floor_sealed is None:
@@ -86,6 +86,7 @@ def generate_map():
             grid[r][c] = WALL
             placed += 1
 
+    # NOTES: diubah, tidak ada minimal untuk sealed floor
     # menaruh 3 sealed floor secara random
     sealed_positions = []
     attempts = 0
