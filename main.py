@@ -244,7 +244,8 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
                 grid, player_pos, ghost_pos = generate_map()
-                manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] == MANUSCRIPT)
+                # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
+                manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
             if event.key == pygame.K_ESCAPE:
                 running = False
 
