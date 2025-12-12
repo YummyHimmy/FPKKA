@@ -5,7 +5,7 @@ import sys
 
 # GAME CONFIGURATIONS
 TILE_SIZE = 64
-GRID = 7
+GRID = 6 # updated the grid dari 7 ke 6
 WIDTH = GRID * TILE_SIZE
 HEIGHT = GRID * TILE_SIZE
 ASSET_DIR = os.path.join(os.path.dirname(__file__), "assets")  # relative assets/
@@ -68,100 +68,106 @@ WALL = 1
 SEALED_FLOOR = 2
 MANUSCRIPT = 3
 
+# so there is a case where the
+# sprite (player/ghost) spawned in a "chamber"
+# that isolates them from playing
+def is_map_valid(grid):
+    walkable_tiles=[]
+    for r in range(GRID):
+        for c in range(GRID):
+            # player bisa berjalan di Regular Floor, Sealed Floor, Manuscript
+            if grid[r][c] in [FLOOR, SEALED_FLOOR, MANUSCRIPT]:
+                walkable_tiles.append((r, c))
+    
+    if not walkable_tiles:
+        return False
+
+    # inisiasi Flood Fill
+    start_pos = walkable_tiles[0]
+    queue = [start_pos]
+    visited = {start_pos}
+    count = 0
+
+    while queue:
+        r, c = queue.pop(0)
+        count += 1
+
+        # check 4 area (up, down, left, right)
+        neighbors = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+        for nr, nc in neighbors:
+            if 0 <= nr < GRID and 0 <= nc < GRID:
+                
+                if (nr, nc) not in visited and grid[nr][nc] in [FLOOR, SEALED_FLOOR, MANUSCRIPT]:
+                    visited.add((nr, nc))
+                    queue.append((nr, nc))
+    return count == len(walkable_tiles)
+
 # MAP GENERATOR
 def generate_map():
+    while True:
     # insisiasi map structure dasar
-    grid = [[FLOOR for _ in range(GRID)] for _ in range(GRID)]
+        grid = [[FLOOR for _ in range(GRID)] for _ in range(GRID)]
 
     # random wall placement
-    total_walls = random.randint(8, 14)
-    placed = 0
-    attempts = 0
-    while placed < total_walls and attempts < 200:
-        attempts += 1
-        r = random.randint(0, GRID - 1)
-        c = random.randint(0, GRID - 1)
-        # menghindari sealed atau manuskrip terlalu awal
-        if grid[r][c] == FLOOR:
-            grid[r][c] = WALL
-            placed += 1
+        total_walls = random.randint(10, 16) # update dari 8,14 ke 10,16
+        placed = 0
+        attempts = 0
+        while placed < total_walls and attempts < 200:
+            attempts += 1
+            r = random.randint(0, GRID - 1)
+            c = random.randint(0, GRID - 1)
+
+            # menghindari sealed atau manuskrip terlalu awal
+
+            # UPDATE: jika 70% WALL 30% SEALED_WALL
+            if grid[r][c] == FLOOR:
+                rng = random.random()
+                if rng < 0.7:
+                    grid[r][c] = WALL
+                else:
+                    grid[r][c] = WALL_SEALED
+                placed += 1
 
     # NOTES: diubah, tidak ada minimal untuk sealed floor
     # menaruh 3 sealed floor secara random
-    sealed_positions = []
-    attempts = 0
-    while len(sealed_positions) < 3 and attempts < 200:
-        attempts += 1
-        r = random.randint(0, GRID - 1)
-        c = random.randint(0, GRID - 1)
-        if grid[r][c] == FLOOR:
-            grid[r][c] = SEALED_FLOOR
-            sealed_positions.append((r, c))
+        sealed_positions = []
+        attempts = 0
+        while len(sealed_positions) < 3 and attempts < 200:
+            attempts += 1
+            r = random.randint(0, GRID - 1)
+            c = random.randint(0, GRID - 1)
+            if grid[r][c] == FLOOR:
+                grid[r][c] = SEALED_FLOOR
+                sealed_positions.append((r, c))
 
     # menaruh 3 mansuksrip secara random
-    manuscript_positions = []
-    attempts = 0
-    while len(manuscript_positions) < 3 and attempts < 500:
-        attempts += 1
-        r = random.randint(0, GRID - 1)
-        c = random.randint(0, GRID - 1)
-        if grid[r][c] == FLOOR:
-            grid[r][c] = MANUSCRIPT
-            manuscript_positions.append((r, c))
+        manuscript_positions = []
+        attempts = 0
+        while len(manuscript_positions) < 3 and attempts < 500:
+            attempts += 1
+            r = random.randint(0, GRID - 1)
+            c = random.randint(0, GRID - 1)
+            if grid[r][c] == FLOOR:
+                grid[r][c] = MANUSCRIPT
+                manuscript_positions.append((r, c))
 
-    # menempatkan player di floor
-    player_pos = None
-    attempts = 0
-    while player_pos is None and attempts < 500:
-        attempts += 1
-        r = random.randint(0, GRID - 1)
-        c = random.randint(0, GRID - 1)
-        if grid[r][c] == FLOOR:
-            player_pos = (r, c)
 
-    # menempatkan player di floor (notes: tidak di player)
-    ghost_pos = None
-    attempts = 0
-    while ghost_pos is None and attempts < 500:
-        attempts += 1
-        r = random.randint(0, GRID - 1)
-        c = random.randint(0, GRID - 1)
-        if grid[r][c] == FLOOR and (r, c) != player_pos:
-            ghost_pos = (r, c)
+        # UPDATE: sebelum menempatkan player, cek valid atau tidak mapnya,
+        # sebelumnya diemplementasikan attempt menebak penempatan dengan looping 500x player di floor 
+        if is_map_valid(grid):
+            # checks out the safest spot, penetapannya di Regular Floor
+            safe_spots = []
+            for r in range(GRID):
+                for c in range(GRID):
+                    if grid[r][c] == FLOOR:
+                        safe_spots.append((r,c))
+            
+            if len(safe_spots) >= 2:    # untuk spot Player & Ghost
+                player_pos = random.choice(safe_spots)
+                safe_spots.remove(player_pos)
+                ghost_pos = random.choice(safe_spots)
 
-    # fallback safety
-    if player_pos is None:
-        player_pos = (GRID//2, GRID//2)
-    if ghost_pos is None:
-        ghost_pos = (0, 0) if grid[0][0] == FLOOR else (GRID-1, GRID-1)
-
-    # ensure tidak ada plater ataupun ghost yang spawn di wall, sealed, dan manuskrip
-    pr, pc = player_pos
-    if grid[pr][pc] != FLOOR:
-        # cari floor tile
-        for r in range(GRID):
-            for c in range(GRID):
-                if grid[r][c] == FLOOR:
-                    player_pos = (r, c)
-                    raise_stop = True
-                    break
-            else:
-                continue
-            break
-
-    gr, gc = ghost_pos
-    if grid[gr][gc] != FLOOR:
-        for r in range(GRID):
-            for c in range(GRID):
-                if grid[r][c] == FLOOR and (r, c) != player_pos:
-                    ghost_pos = (r, c)
-                    raise_stop = True
-                    break
-            else:
-                continue
-            break
-
-    return grid, player_pos, ghost_pos
+                return grid, player_pos, ghost_pos
 
 # DRAW THE GAME TO THE WINDOW
 def draw(grid, player_pos, ghost_pos, manuscripts_left):
@@ -176,6 +182,8 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left):
                 screen.blit(floor_regular, (x, y))
             elif t == WALL:
                 screen.blit(wall_regular, (x, y))
+            elif t == WALL_SEALED:                  # UPDATE: add sealed wall
+                screen.blit(wall_sealed, (x, y))
             elif t == SEALED_FLOOR:
                 screen.blit(floor_sealed, (x, y))
             elif t == MANUSCRIPT:
