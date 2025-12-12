@@ -109,7 +109,7 @@ def causes_clump(grid, r, c):
     def is_wall(nr, nc):
         if 0 <= nr < GRID and 0 <= nc < GRID:
             return grid[nr][nc] in [WALL, WALL_SEALED]
-        return False
+        return True # UPDATE: it wouldn't want to stick to wall
 
     # check directions clumping 2x2
     checks = [
