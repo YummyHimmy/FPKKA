@@ -67,6 +67,7 @@ FLOOR = 0
 WALL = 1
 SEALED_FLOOR = 2
 MANUSCRIPT = 3
+MANUSCRIPT_SEALED= 5 # NEW constant biar manuskrip dapat di SEALED_FLOOR
 
 # so there is a case where the
 # sprite (player/ghost) spawned in a "chamber"
@@ -76,7 +77,7 @@ def is_map_valid(grid):
     for r in range(GRID):
         for c in range(GRID):
             # player bisa berjalan di Regular Floor, Sealed Floor, Manuscript
-            if grid[r][c] in [FLOOR, SEALED_FLOOR, MANUSCRIPT]:
+            if grid[r][c] in [FLOOR, SEALED_FLOOR, MANUSCRIPT, MANUSCRIPT_SEALED]: # NEW MANUSCRIPT_SEALED
                 walkable_tiles.append((r, c))
     
     if not walkable_tiles:
@@ -97,10 +98,32 @@ def is_map_valid(grid):
         for nr, nc in neighbors:
             if 0 <= nr < GRID and 0 <= nc < GRID:
                 
-                if (nr, nc) not in visited and grid[nr][nc] in [FLOOR, SEALED_FLOOR, MANUSCRIPT]:
+                if (nr, nc) not in visited and grid[nr][nc] in [FLOOR, SEALED_FLOOR, MANUSCRIPT, MANUSCRIPT_SEALED]: # NEW MANUSCRIPT_SEALED    
                     visited.add((nr, nc))
                     queue.append((nr, nc))
     return count == len(walkable_tiles)
+
+# UPDATE: terdapat sebuah clumps 2x2, ini sebagai pencegah penumpukan
+def causes_clump(grid, r, c):
+    # cek tile apakah tembol
+    def is_wall(nr, nc):
+        if 0 <= nr < GRID and 0 <= nc < GRID:
+            return grid[nr][nc] in [WALL, WALL_SEALED]
+        return False
+
+    # check directions clumping 2x2
+    checks = [
+        [(r-1, c), (r, c-1), (r-1, c-1)], # NW
+        [(r-1, c), (r, c+1), (r-1, c+1)], # NE
+        [(r+1, c), (r, c-1), (r+1, c-1)], # SW
+        [(r+1, c), (r, c+1), (r+1, c+1)]  # SE
+    ]
+
+    for check in checks:
+        if all(is_wall(nr, nc) for nr, nc in check):
+            return True # Terdeteksi akan membentuk kotak 2x2!
+            
+    return False
 
 # MAP GENERATOR
 def generate_map():
@@ -121,6 +144,8 @@ def generate_map():
 
             # UPDATE: jika 70% WALL 30% SEALED_WALL
             if grid[r][c] == FLOOR:
+                if causes_clump(grid, r, c):
+                    continue
                 rng = random.random()
                 if rng < 0.7:
                     grid[r][c] = WALL
@@ -150,7 +175,9 @@ def generate_map():
             if grid[r][c] == FLOOR:
                 grid[r][c] = MANUSCRIPT
                 manuscript_positions.append((r, c))
-
+            if grid[r][c] == SEALED_FLOOR:              # NEW MANUSCRIPT_SEALED
+                grid[r][c] = MANUSCRIPT_SEALED
+                manuscript_positions.append((r, c))
 
         # UPDATE: sebelum menempatkan player, cek valid atau tidak mapnya,
         # sebelumnya diemplementasikan attempt menebak penempatan dengan looping 500x player di floor 
@@ -189,7 +216,9 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left):
             elif t == MANUSCRIPT:
                 screen.blit(floor_regular, (x, y))
                 screen.blit(manuscript_img, (x, y))
-
+            elif t == MANUSCRIPT_SEALED:            # NEW MANUSCRIPT_SEALED
+                screen.blit(floor_sealed, (x, y))
+                screen.blit(manuscript_img, (x, y))
     # player & ghost
     pr, pc = player_pos
     gr, gc = ghost_pos
