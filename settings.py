@@ -2,11 +2,18 @@
 import os
 
 # GAME CONFIGURATIONS
+GRID = 10
+
 TILE_SIZE = 64
-GRID = 8 # updated the grid dari 7 ke 6
 WIDTH = GRID * TILE_SIZE
 HEIGHT = GRID * TILE_SIZE
+TOTAL_TILES = GRID * GRID
 ASSET_DIR = os.path.join(os.path.dirname(__file__), "assets")  # relative assets/
+TOP_BAR_HEIGHT = 40
+SIDEBAR_WIDTH = 260
+GAME_OFFSET_X = 0
+GAME_OFFSET_Y = TOP_BAR_HEIGHT
+MAX_STEPS = 5
 
 # Konstanta tile
 FLOOR = 0
@@ -14,26 +21,33 @@ WALL = 1
 SEALED_FLOOR = 2
 MANUSCRIPT = 3
 WALL_SEALED = 4
-MANUSCRIPT_SEALED= 5 # NEW constant biar manuskrip dapat di SEALED_FLOOR
+MANUSCRIPT_SEALED = 5 # NEW constant biar manuskrip dapat di SEALED_FLOOR
+
+# Konstanta state
+PLAYER_PLANNING = 0
+PLAYER_MOVING   = 1
+GHOST_MOVING    = 2
+
+turn_state = PLAYER_PLANNING
 
 # CONSTRAINT FOR DIFFICULTIES OF THE MAP LAYOUT
 DIFFICULTY_SETTINGS = {
     "EASY": {
-        "wall_range": (6, 8),       # Range tembok sedikit
-        "sealed_floors": 4,         # Terdapat banyak tempat aman
-        "wall_chance": 0.5,         # 50% Wall Biasa
-        "spawn_dist": 4             # Hantu spawn jauh
+        "wall_ratio": (0.15, 0.20),     # Range tembok sedikit
+        "sealed_ratio": 0.10,           # Terdapat banyak tempat aman
+        "wall_chance": 0.5,             # 50% Wall Biasa
+        "spawn_dist": max(4, GRID // 2) # Hantu spawn jauh
     },
     "MEDIUM": {
-        "wall_range": (10, 14),
-        "sealed_floors": 3,
-        "wall_chance": 0.7,         # 70% Wall Biasa
-        "spawn_dist": 3
+        "wall_ratio": (0.25, 0.30),
+        "sealed_ratio": 0.06,
+        "wall_chance": 0.7,
+        "spawn_dist": max(3, GRID // 3)
     },
     "HARD": {
-        "wall_range": (12, 16),
-        "sealed_floors": 1,         # hanya ada 1 tempat aman
-        "wall_chance": 0.9,         # 90% Wall Biasa
-        "spawn_dist": 3
+        "wall_ratio": (0.35, 0.40),
+        "sealed_ratio": 0.03,
+        "wall_chance": 0.9,             # 90% Wall Biasa
+        "spawn_dist": max(3, GRID // 3)
     }
 }

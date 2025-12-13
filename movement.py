@@ -2,9 +2,7 @@
 import pygame
 from settings import *
 
-MAX_STEPS = 5
 MOVE_DELAY = 150  # ms
-
 
 class Controller:
     def __init__(self):
@@ -76,14 +74,14 @@ class Controller:
             self.path.clear()
 
     # ---------- DRAW ----------
-    def draw_path(self, screen):
+    def draw_path(self, screen, offset_x=0, offset_y=0):
         for r, c in self.path:
             pygame.draw.circle(
                 screen,
                 (228, 245, 245),
                 (
-                    c * TILE_SIZE + TILE_SIZE // 2, # on center
-                    r * TILE_SIZE + TILE_SIZE // 2
+                    c * TILE_SIZE + TILE_SIZE // 2 + offset_x,
+                    r * TILE_SIZE + TILE_SIZE // 2 + offset_y
                 ),
                 5 # radius
             )

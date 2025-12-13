@@ -62,8 +62,9 @@ def generate_map(difficulty="EASY"):
     config = DIFFICULTY_SETTINGS[difficulty]
 
     # ADDITIONALS
-    wall_min, wall_max = config["wall_range"]
-    sealed_floors_count = config["sealed_floors"]
+    wall_min = int(TOTAL_TILES * config["wall_ratio"][0])
+    wall_max = int(TOTAL_TILES * config["wall_ratio"][1])
+    sealed_floors_count = int(TOTAL_TILES * config["sealed_ratio"])
     wall_chance = config["wall_chance"]
     spawn_dist = config["spawn_dist"]
 
