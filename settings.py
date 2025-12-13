@@ -1,8 +1,9 @@
+#settings.py
 import os
 
 # GAME CONFIGURATIONS
 TILE_SIZE = 64
-GRID = 6 # updated the grid dari 7 ke 6
+GRID = 8 # updated the grid dari 7 ke 6
 WIDTH = GRID * TILE_SIZE
 HEIGHT = GRID * TILE_SIZE
 ASSET_DIR = os.path.join(os.path.dirname(__file__), "assets")  # relative assets/

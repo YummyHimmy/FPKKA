@@ -1,3 +1,4 @@
+#main.py
 import pygame
 import os
 import random
@@ -5,6 +6,8 @@ import sys
 from settings import *
 import map
 import level_controller # imports the difficulties setting
+from movement import Controller # import player control
+movement = Controller()
 
 # HELPER FUNCTION
 # load asset dari folder asset
@@ -105,18 +108,40 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        # ---------------- MOVEMENT INPUT ----------------
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            movement.handle_mouse_click(
+                pygame.mouse.get_pos(),
+                grid,
+                player_pos
+            )
+
         if event.type == pygame.KEYDOWN:
             result = level_controller.game_difficulties(event, current_difficulty)
+            
+            if event.key == pygame.K_RETURN: # Confirm movement with 'Enter' key
+                movement.confirm_move()
+
+            if event.key == pygame.K_z: # Reset dot placement with 'z' key
+                movement.reset_path()
+        
             if not result['running']:
                 running = False
+                
             if result['regen']:
+                movement.path.clear()
+                movement.is_moving = False                
                 current_difficulty = result['difficulty']
                 grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
                 # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
                 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
+    player_pos = movement.update(player_pos)
+
     screen.fill((0,0,0))
     draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty) # Additional 'current_difficulty' in the function's parameter
+    movement.draw_path(screen) 
     pygame.display.flip()
     clock.tick(30)
 
