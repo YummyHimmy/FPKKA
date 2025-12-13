@@ -123,6 +123,34 @@ def generate_map():
             if len(safe_spots) >= 2:    # untuk spot Player & Ghost
                 player_pos = random.choice(safe_spots)
                 safe_spots.remove(player_pos)
-                ghost_pos = random.choice(safe_spots)
 
-                return grid, player_pos, ghost_pos
+                # UPDATE: change Ghost position, so that it doesn't necessarily near the Player
+                random.shuffle(safe_spots)
+                validate_ghost_found = False
+                ghost_pos = None
+
+                for potential_pos in safe_spots:
+                    gr, gc = potential_pos
+                    pr, pc = player_pos
+
+                    # Manhattan distance (3 steps far)
+                    dist = abs(gr - pr) + abs(gc - pc)
+                    if (dist) < 3: continue
+
+                    neighbors = [(gr-1, gc), (gr+1, gc), (gr, gc-1), (gr, gc+1)]
+                    # isn't isolated by the Sealed Floor
+                    has_exit = False
+                    for nr, nc in neighbors:
+                        if 0 <= nr < GRID and 0 <= nc < GRID:
+                            if grid[nr][nc] in [FLOOR, MANUSCRIPT]: # Jalan legal buat hantu
+                                has_exit = True
+                                break
+                    # simpan kalo ketemu
+                    if has_exit:
+                        ghost_pos = potential_pos
+                        validate_ghost_found = True # Tandai bahwa berhasil
+                        break
+
+
+                if validate_ghost_found:
+                    return grid, player_pos, ghost_pos
