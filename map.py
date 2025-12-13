@@ -57,13 +57,21 @@ def is_map_valid(grid):
     return count == len(walkable_tiles)
 
 # MAP GENERATOR
-def generate_map():
+def generate_map(difficulty="EASY"):
+    config = DIFFICULTY_SETTINGS[difficulty]
+
+    # ADDITIONALS
+    wall_min, wall_max = config["wall_range"]
+    sealed_floors_count = config["sealed_floors"]
+    wall_chance = config["wall_chance"]
+    spawn_dist = config["spawn_dist"]
+
     while True:
     # insisiasi map structure dasar
         grid = [[FLOOR for _ in range(GRID)] for _ in range(GRID)]
 
     # random wall placement
-        total_walls = random.randint(10, 16) # update dari 8,14 ke 10,16
+        total_walls = random.randint(wall_min, wall_max) # update this to wall_min and wall_max
         placed = 0
         attempts = 0
         while placed < total_walls and attempts < 200:
@@ -78,7 +86,7 @@ def generate_map():
                 if causes_clump(grid, r, c):
                     continue
                 rng = random.random()
-                if rng < 0.7:
+                if rng < wall_chance: # CHANGED: config chance
                     grid[r][c] = WALL
                 else:
                     grid[r][c] = WALL_SEALED
@@ -88,7 +96,7 @@ def generate_map():
     # menaruh 3 sealed floor secara random
         sealed_positions = []
         attempts = 0
-        while len(sealed_positions) < 3 and attempts < 200:
+        while len(sealed_positions) < sealed_floors_count and attempts < 200: # CHAMGED: config count
             attempts += 1
             r = random.randint(0, GRID - 1)
             c = random.randint(0, GRID - 1)
@@ -135,7 +143,7 @@ def generate_map():
 
                     # Manhattan distance (3 steps far)
                     dist = abs(gr - pr) + abs(gc - pc)
-                    if (dist) < 3: continue
+                    if (dist) < spawn_dist: continue    # CHANGED: config distance
 
                     neighbors = [(gr-1, gc), (gr+1, gc), (gr, gc-1), (gr, gc+1)]
                     # isn't isolated by the Sealed Floor

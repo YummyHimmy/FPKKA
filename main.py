@@ -4,6 +4,7 @@ import random
 import sys
 from settings import *
 import map
+import level_controller # imports the difficulties setting
 
 # HELPER FUNCTION
 # load asset dari folder asset
@@ -56,7 +57,8 @@ if ghost_img is None:
     ghost_img = solid_surface((200, 60, 140))
 
 # DRAW THE GAME TO THE WINDOW
-def draw(grid, player_pos, ghost_pos, manuscripts_left):
+# Additional variable in the parameter 'curr_diff'
+def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
     # the loop will draw seluruh grid pada map
     for r in range(GRID):
         for c in range(GRID):
@@ -86,11 +88,14 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left):
 
     # Head Display
     font = pygame.font.SysFont(None, 20)
-    txt = font.render(f"Manuscripts left: {manuscripts_left}   (Press R to regen)", True, (240,240,240))
+    txt = font.render(f"Difficulty: {curr_diff} Manuscripts left: {manuscripts_left}   (Press R to regen)", True, (240,240,240))
     screen.blit(txt, (4, 4))
 
+
+current_difficulty = "EASY" # the default difficulty level
+
 # MAIN
-grid, player_pos, ghost_pos = map.generate_map()
+grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
 # menghitung sisa dari manuscript yang belum diambil
 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
@@ -101,15 +106,17 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                grid, player_pos, ghost_pos = map.generate_map()
+            result = level_controller.game_difficulties(event, current_difficulty)
+            if not result['running']:
+                running = False
+            if result['regen']:
+                current_difficulty = result['difficulty']
+                grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
                 # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
                 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
-            if event.key == pygame.K_ESCAPE:
-                running = False
 
     screen.fill((0,0,0))
-    draw(grid, player_pos, ghost_pos, manuscripts_left)
+    draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty) # Additional 'current_difficulty' in the function's parameter
     pygame.display.flip()
     clock.tick(30)
 
