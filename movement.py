@@ -2,14 +2,20 @@
 import pygame
 from settings import *
 
-MOVE_DELAY = 150  # ms
-
 class Controller:
     def __init__(self):
         self.path = []
         self.is_moving = False
         self.move_index = 0
         self.last_move_time = 0
+        self.direction = "DOWN"
+        self.animation = 0
+        self.pixel_x = None
+        self.pixel_y = None
+        self.target_x = None
+        self.target_y = None
+        self.move_start_time = 0
+        self.move_duration = AVATAR_MOVE_DELAY
 
     # ---------- RULES ----------
     def is_adjacent(self, a, b):
@@ -57,15 +63,63 @@ class Controller:
             return player_pos
 
         now = pygame.time.get_ticks()
-        if now - self.last_move_time > MOVE_DELAY:
-            player_pos = self.path[self.move_index]
-            self.move_index += 1
-            self.last_move_time = now
+        
+        if self.pixel_x is None:
+            r, c = player_pos
+            self.pixel_x = c * TILE_SIZE
+            self.pixel_y = r * TILE_SIZE
 
-            if self.move_index >= len(self.path):
-                self.path.clear()
-                self.is_moving = False
+        if self.is_moving:
+            if self.target_x is None:
+                nr, nc = self.path[self.move_index]
 
+                # --- SET DIRECTION HERE ---
+                cr, cc = player_pos
+                dr = nr - cr
+                dc = nc - cc
+
+                if dr == -1 and dc == 0:
+                    self.direction = "UP"
+                elif dr == 1 and dc == 0:
+                    self.direction = "DOWN"
+                elif dr == 0 and dc == -1:
+                    self.direction = "LEFT"
+                elif dr == 0 and dc == 1:
+                    self.direction = "RIGHT"
+                elif dr == -1 and dc == -1:
+                    self.direction = "UP_LEFT"
+                elif dr == -1 and dc == 1:
+                    self.direction = "UP_RIGHT"
+                elif dr == 1 and dc == -1:
+                    self.direction = "DOWN_LEFT"
+                elif dr == 1 and dc == 1:
+                    self.direction = "DOWN_RIGHT"
+
+                # target pixel
+                self.target_x = nc * TILE_SIZE
+                self.target_y = nr * TILE_SIZE
+                self.move_start_time = now
+
+            t = min((now - self.move_start_time) / self.move_duration, 1)
+
+            # Linear interpolation
+            self.pixel_x += (self.target_x - self.pixel_x) * t
+            self.pixel_y += (self.target_y - self.pixel_y) * t
+
+            if t >= 1:
+                player_pos = self.path[self.move_index]
+                self.move_index += 1
+                self.target_x = None
+                self.target_y = None
+
+                if self.move_index >= len(self.path):
+                    self.path.clear()
+                    self.is_moving = False
+                    self.animation = 0
+                    self.direction = "DOWN"
+      
+        self.animation = pygame.time.get_ticks() // 4098
+            
         return player_pos
 
     # ---------- RESET ----------
@@ -74,7 +128,10 @@ class Controller:
             self.path.clear()
 
     # ---------- DRAW ----------
-    def draw_path(self, screen, offset_x=0, offset_y=0):
+    def draw_path(self, screen, offset_x=0, offset_y=0):    
+        if self.is_moving: # Kalau jalan titiknya hilang
+            return
+        
         for r, c in self.path:
             pygame.draw.circle(
                 screen,
