@@ -1,166 +1,139 @@
-#map.py
 import random
 from settings import *
 
-def causes_clump(grid, r, c):
-    # cek tile apakah tembol
-    def is_wall(nr, nc):
-        if 0 <= nr < GRID and 0 <= nc < GRID:
-            return grid[nr][nc] in [WALL, WALL_SEALED]
-        return True # UPDATE: it wouldn't want to stick to wall
+# I've just realize that I don't need the 'causes_clump' and 'is_map_valid' which is more of a bruteforce.
+# Dengan menggunakan STACK, tidak melandakan generated map pada infinite freezing
 
-    # check directions clumping 2x2
-    checks = [
-        [(r-1, c), (r, c-1), (r-1, c-1)], # NW
-        [(r-1, c), (r, c+1), (r-1, c+1)], # NE
-        [(r+1, c), (r, c-1), (r+1, c-1)], # SW
-        [(r+1, c), (r, c+1), (r+1, c+1)]  # SE
-    ]
-
-    for check in checks:
-        if all(is_wall(nr, nc) for nr, nc in check):
-            return True # Terdeteksi akan membentuk kotak 2x2!
-            
-    return False
-
-# so there is a case where the
-# sprite (player/ghost) spawned in a "chamber"
-# that isolates them from playing
-def is_map_valid(grid):
-    walkable_tiles=[]
-    for r in range(GRID):
-        for c in range(GRID):
-            # player bisa berjalan di Regular Floor, Sealed Floor, Manuscript
-            if grid[r][c] in [FLOOR, SEALED_FLOOR, MANUSCRIPT, MANUSCRIPT_SEALED]: # NEW MANUSCRIPT_SEALED
-                walkable_tiles.append((r, c))
-    
-    if not walkable_tiles:
-        return False
-
-    # inisiasi Flood Fill
-    start_pos = walkable_tiles[0]
-    queue = [start_pos]
-    visited = {start_pos}
-    count = 0
-
-    while queue:
-        r, c = queue.pop(0)
-        count += 1
-
-        # check 4 area (up, down, left, right)
-        neighbors = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
-        for nr, nc in neighbors:
-            if 0 <= nr < GRID and 0 <= nc < GRID:
-                
-                if (nr, nc) not in visited and grid[nr][nc] in [FLOOR, SEALED_FLOOR, MANUSCRIPT, MANUSCRIPT_SEALED]: # NEW MANUSCRIPT_SEALED    
-                    visited.add((nr, nc))
-                    queue.append((nr, nc))
-    return count == len(walkable_tiles)
-
-# MAP GENERATOR
+# MAP GENERATOR:
 def generate_map(difficulty="EASY"):
     config = DIFFICULTY_SETTINGS[difficulty]
 
     # ADDITIONALS
     wall_min = int(TOTAL_TILES * config["wall_ratio"][0])
     wall_max = int(TOTAL_TILES * config["wall_ratio"][1])
+    
     sealed_floors_count = int(TOTAL_TILES * config["sealed_ratio"])
     wall_chance = config["wall_chance"]
     spawn_dist = config["spawn_dist"]
 
-    while True:
-    # insisiasi map structure dasar
-        grid = [[FLOOR for _ in range(GRID)] for _ in range(GRID)]
+    # Target jumlah tembok
+    target_final_walls = random.randint(wall_min, wall_max)
 
-    # random wall placement
-        total_walls = random.randint(wall_min, wall_max) # update this to wall_min and wall_max
-        placed = 0
-        attempts = 0
-        while placed < total_walls and attempts < 200:
-            attempts += 1
-            r = random.randint(0, GRID - 1)
-            c = random.randint(0, GRID - 1)
+    # Changed: inisiasi grid dengan WALL
+    grid = [[WALL for _ in range(GRID)] for _ in range(GRID)]
+    
+    # menentukan coordinate start
+    start_r, start_c = random.randint(0, GRID-1), random.randint(0, GRID-1)
+    grid[start_r][start_c] = FLOOR
 
-            # menghindari sealed atau manuskrip terlalu awal
+    # Stack Algorithm
+    stack = [(start_r, start_c)]
 
-            # UPDATE: jika 70% WALL 30% SEALED_WALL
-            if grid[r][c] == FLOOR:
-                if causes_clump(grid, r, c):
-                    continue
-                rng = random.random()
-                if rng < wall_chance: # CHANGED: config chance
-                    grid[r][c] = WALL
-                else:
+    while stack:
+        current_r, current_c = stack[-1] # posisi terakhir
+
+        # directions dengan hop 2 step
+        directions = [(-2, 0), (2, 0), (0, -2), (0, 2)]
+        random.shuffle(directions)
+
+        found_path = False
+        for dr, dc in directions:
+            nr, nc = current_r + dr, current_c + dc
+
+            # jike neigbor ada di dalam grid AND berupa tembok
+            if 0 <= nr < GRID and 0 <= nc < GRID and grid[nr][nc] == WALL:
+                
+                # removes wall di antara posisi sekarang & neigbor
+                wall_between_r = current_r + (dr // 2)
+                wall_between_c = current_c + (dc // 2)
+                grid[wall_between_r][wall_between_c] = FLOOR
+                
+                # removes wall neighbor
+                grid[nr][nc] = FLOOR
+
+                # masuk ke stack
+                stack.append((nr, nc))
+                found_path = True
+                break 
+        
+        if not found_path:
+            stack.pop() # Backtrack jika jalan buntu
+
+    # Logic: remoes the WALL secara acak dengan jumlah yang sesuai 'targe_final_walls'
+    
+    current_wall_count = sum(row.count(WALL) for row in grid)
+
+    walls_coords = []
+    for r in range(GRID):
+        for c in range(GRID):
+            if grid[r][c] == WALL:
+                walls_coords.append((r,c))
+    random.shuffle(walls_coords)
+
+    while current_wall_count > target_final_walls and walls_coords:
+        r, c = walls_coords.pop()
+        grid[r][c] = FLOOR
+        current_wall_count -= 1
+
+    # Sealed Walls
+    for r in range(GRID):
+        for c in range(GRID):
+            if grid[r][c] == WALL:
+                if random.random() > wall_chance:
                     grid[r][c] = WALL_SEALED
-                placed += 1
+    
+    # Sealed Floors
+    placed_sealed = 0
+    attempts = 0
+    while placed_sealed < sealed_floors_count and attempts < 200:
+        attempts += 1
+        r, c = random.randint(0, GRID-1), random.randint(0, GRID-1)
+        if grid[r][c] == FLOOR:
+            grid[r][c] = SEALED_FLOOR
+            placed_sealed += 1
 
-    # NOTES: diubah, tidak ada minimal untuk sealed floor
-    # menaruh 3 sealed floor secara random
-        sealed_positions = []
-        attempts = 0
-        while len(sealed_positions) < sealed_floors_count and attempts < 200: # CHAMGED: config count
-            attempts += 1
-            r = random.randint(0, GRID - 1)
-            c = random.randint(0, GRID - 1)
-            if grid[r][c] == FLOOR:
-                grid[r][c] = SEALED_FLOOR
-                sealed_positions.append((r, c))
+    # Manuscripts
+    placed_manuscripts = 0
+    attempts = 0
+    while placed_manuscripts < 3 and attempts < 500:
+        attempts += 1
+        r, c = random.randint(0, GRID-1), random.randint(0, GRID-1)
+        if grid[r][c] == FLOOR:
+            grid[r][c] = MANUSCRIPT
+            placed_manuscripts += 1
+        elif grid[r][c] == SEALED_FLOOR:
+            grid[r][c] = MANUSCRIPT_SEALED
+            placed_manuscripts += 1
 
-    # menaruh 3 mansuksrip secara random
-        manuscript_positions = []
-        attempts = 0
-        while len(manuscript_positions) < 3 and attempts < 500:
-            attempts += 1
-            r = random.randint(0, GRID - 1)
-            c = random.randint(0, GRID - 1)
-            if grid[r][c] == FLOOR:
-                grid[r][c] = MANUSCRIPT
-                manuscript_positions.append((r, c))
-            if grid[r][c] == SEALED_FLOOR:              # NEW MANUSCRIPT_SEALED
-                grid[r][c] = MANUSCRIPT_SEALED
-                manuscript_positions.append((r, c))
+    # the spawn of the sprite
+    safe_spots = [(r, c) for r in range(GRID) for c in range(GRID) if grid[r][c] == FLOOR]
+    
+    # tidak menutup kemungkinan bahwa akan ada error, Fallback Safety
+    if len(safe_spots) < 2:
+        return generate_map("EASY") 
 
-        # UPDATE: sebelum menempatkan player, cek valid atau tidak mapnya,
-        # sebelumnya diemplementasikan attempt menebak penempatan dengan looping 500x player di floor 
-        if is_map_valid(grid):
-            # checks out the safest spot, penetapannya di Regular Floor
-            safe_spots = []
-            for r in range(GRID):
-                for c in range(GRID):
-                    if grid[r][c] == FLOOR:
-                        safe_spots.append((r,c))
+    player_pos = random.choice(safe_spots)
+    safe_spots.remove(player_pos)
+    random.shuffle(safe_spots)
+    
+    ghost_pos = None
+    current_req_dist = spawn_dist
+    
+    # Update: reconstruct the logic spawing Ghost with manahattan distance
+    for _ in range(5): 
+        for spot in safe_spots:
+            gr, gc = spot
+            pr, pc = player_pos
+            dist = abs(gr - pr) + abs(gc - pc)
             
-            if len(safe_spots) >= 2:    # untuk spot Player & Ghost
-                player_pos = random.choice(safe_spots)
-                safe_spots.remove(player_pos)
+            if dist >= current_req_dist:
+                ghost_pos = spot
+                break
+        
+        if ghost_pos: break
+        current_req_dist = max(2, current_req_dist - 1) 
+        
+    if not ghost_pos:
+        ghost_pos = safe_spots[0] 
 
-                # UPDATE: change Ghost position, so that it doesn't necessarily near the Player
-                random.shuffle(safe_spots)
-                validate_ghost_found = False
-                ghost_pos = None
-
-                for potential_pos in safe_spots:
-                    gr, gc = potential_pos
-                    pr, pc = player_pos
-
-                    # Manhattan distance (3 steps far)
-                    dist = abs(gr - pr) + abs(gc - pc)
-                    if (dist) < spawn_dist: continue    # CHANGED: config distance
-
-                    neighbors = [(gr-1, gc), (gr+1, gc), (gr, gc-1), (gr, gc+1)]
-                    # isn't isolated by the Sealed Floor
-                    has_exit = False
-                    for nr, nc in neighbors:
-                        if 0 <= nr < GRID and 0 <= nc < GRID:
-                            if grid[nr][nc] in [FLOOR, MANUSCRIPT]: # Jalan legal buat hantu
-                                has_exit = True
-                                break
-                    # simpan kalo ketemu
-                    if has_exit:
-                        ghost_pos = potential_pos
-                        validate_ghost_found = True # Tandai bahwa berhasil
-                        break
-
-
-                if validate_ghost_found:
-                    return grid, player_pos, ghost_pos
+    return grid, player_pos, ghost_pos
