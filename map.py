@@ -4,7 +4,7 @@ from settings import *
 # I've just realize that I don't need the 'causes_clump' and 'is_map_valid' which is more of a bruteforce.
 # Dengan menggunakan STACK, tidak melandakan generated map pada infinite freezing
 
-# MAP GENERATOR
+# MAP GENERATOR:
 def generate_map(difficulty="EASY"):
     config = DIFFICULTY_SETTINGS[difficulty]
 
