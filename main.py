@@ -1,15 +1,42 @@
-#main.py
 import pygame
 import os
 import random
+import math
 import sys
 from settings import *
 import map
 import level_controller # imports the difficulties setting
 from movement import Controller # import player control
+from home_screen import HomeScreen  # Import the home screen
+
+# Initialize game and window display
+pygame.init()
+screen = pygame.display.set_mode((
+    WIDTH + SIDEBAR_WIDTH,
+    HEIGHT + TOP_BAR_HEIGHT
+))
+
+pygame.display.set_caption("EXORCIZE")
+clock = pygame.time.Clock()
+
+# Load the home screen
+home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
+
+# Run home screen and get selected difficulty
+selected_difficulty = home_screen.run(screen)
+
+if selected_difficulty is None:
+    # User quit from home screen
+    pygame.quit()
+    sys.exit()
+
+# Set the selected difficulty
+current_difficulty = selected_difficulty
+grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+
+# Initialize movement controller AFTER home screen
 movement = Controller()
 
-# HELPER FUNCTION
 # load asset dari folder asset
 def load_asset(name):
     path = os.path.join(ASSET_DIR, name)
@@ -25,18 +52,19 @@ def solid_surface(color):
     s.fill(color)
     return s
 
-# Initialize game and window display
-pygame.init()
-screen = pygame.display.set_mode((
-    WIDTH + SIDEBAR_WIDTH,
-    HEIGHT + TOP_BAR_HEIGHT
-))
-
-pygame.display.set_caption("EXORCIZE")
-clock = pygame.time.Clock()
-
 # The assets
-player_img = load_asset("Avatar_Front.png")
+player_sprites = {
+    "UP": load_asset("Avatar\Avatar_Up.png"),
+    "DOWN": load_asset("Avatar\Avatar_Down.png"),
+    "LEFT": load_asset("Avatar\Avatar_Left.png"),
+    "RIGHT": load_asset("Avatar\Avatar_Right.png"),
+
+    "UP_LEFT": load_asset("Avatar\Avatar_Up_Left.png"),
+    "UP_RIGHT": load_asset("Avatar\Avatar_Up_Right.png"),
+    "DOWN_LEFT": load_asset("Avatar\Avatar_Down_Left.png"),
+    "DOWN_RIGHT": load_asset("Avatar\Avatar_Down_Right.png"),
+}
+
 ghost_img = load_asset("Ghost_Left.png")
 
 floor_regular = load_asset("Floor_Regular.png")
@@ -58,13 +86,18 @@ if wall_sealed is None:
     wall_sealed = solid_surface((100, 60, 60))
 if manuscript_img is None:
     manuscript_img = solid_surface((255, 230, 140))
-if player_img is None:
-    player_img = solid_surface((60, 140, 220))
 if ghost_img is None:
     ghost_img = solid_surface((200, 60, 140))
+for k, v in player_sprites.items():
+    if v is None:
+        player_sprites[k] = solid_surface((60, 140, 220))
+
 
 # DRAW THE GAME TO THE WINDOW
 # Additional variable in the parameter 'curr_diff'
+movement.pixel_x = player_pos[1] * TILE_SIZE
+movement.pixel_y = player_pos[0] * TILE_SIZE
+
 def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
     # the loop will draw seluruh grid pada map
     for r in range(GRID):
@@ -88,12 +121,14 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
                 screen.blit(floor_sealed, (x + GAME_OFFSET_X, y + GAME_OFFSET_Y))
                 screen.blit(manuscript_img, (x + GAME_OFFSET_X, y + GAME_OFFSET_Y))
     # player & ghost
-    pr, pc = player_pos
-    gr, gc = ghost_pos
+    player_img = player_sprites.get(movement.direction, player_sprites["DOWN"])
+    y_offset = int(2 * math.sin(movement.animation)) if movement.is_moving else 0
     screen.blit(player_img, (
-        pc * TILE_SIZE + GAME_OFFSET_X,
-        pr * TILE_SIZE + GAME_OFFSET_Y
+        int(movement.pixel_x) + GAME_OFFSET_X,
+        int(movement.pixel_y) + GAME_OFFSET_Y + y_offset
     ))
+
+    gr, gc = ghost_pos
     screen.blit(ghost_img, (
         gc * TILE_SIZE + GAME_OFFSET_X,
         gr * TILE_SIZE + GAME_OFFSET_Y
@@ -145,9 +180,9 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
         "Click  : Place movement dot",
         "ENTER  : Confirm move",
         "Z      : Reset path",
-        "R      : Regenerate map",
+        #"R      : Regenerate map",
         "ESC    : Quit game",
-        "1,2,3  : Change level"
+        "M  : Main Menu"
     ]
 
     y = TOP_BAR_HEIGHT + 52
@@ -158,10 +193,7 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
         )
         y += 22
 
-current_difficulty = "EASY" # the default difficulty level
-
 # MAIN
-grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
 # menghitung sisa dari manuscript yang belum diambil
 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
@@ -173,7 +205,7 @@ while running:
             running = False
 
         # ---------------- MOVEMENT INPUT ----------------
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and turn_state == PLAYER_PLANNING:
             mx, my = pygame.mouse.get_pos()
             movement.handle_mouse_click(
                 (mx, my - TOP_BAR_HEIGHT),
@@ -183,21 +215,37 @@ while running:
 
         if event.type == pygame.KEYDOWN:
             result = level_controller.game_difficulties(event, current_difficulty)
-            
-            if event.key == pygame.K_RETURN: # Confirm movement with 'Enter' key
+            # Confirm movement with 'Enter' key
+            if event.key == pygame.K_RETURN and turn_state == PLAYER_PLANNING: 
                 movement.confirm_move()
                 if movement.path:
                     turn_state = PLAYER_MOVING
                     
             if event.key == pygame.K_z: # Reset dot placement with 'z' key
                 movement.reset_path()
-        
+            
+            if event.key == pygame.K_m:  # Return to menu with 'm' key
+                # Restart home screen
+                home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
+                selected_difficulty = home_screen.run(screen)
+                if selected_difficulty:
+                    current_difficulty = selected_difficulty
+                    grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+                    movement.reset_path()
+                    movement.is_moving = False
+                    movement.animation = 0
+                    movement.direction = "DOWN"
+                    manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
+
+            
             if not result['running']:
                 running = False
                 
             if result['regen']:
                 movement.path.clear()
-                movement.is_moving = False                
+                movement.is_moving = False  
+                movement.animation = 0
+                movement.direction = "DOWN"              
                 current_difficulty = result['difficulty']
                 grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
                 # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
@@ -222,7 +270,7 @@ while running:
 
 
     screen.fill((0,0,0))
-    draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty) # Additional 'current_difficulty' in the function's parameter
+    draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty)
     movement.draw_path(screen, GAME_OFFSET_X, GAME_OFFSET_Y)
     pygame.display.flip()
     clock.tick(30)
