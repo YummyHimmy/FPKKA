@@ -79,7 +79,6 @@ player_sprites = {
 
 ghost_img = load_asset("Ghost_Left.png")
 
-
 floor_regular = load_asset("Floor_Regular.png")
 floor_sealed  = load_asset("Floor_Sealed.png")
 
@@ -204,9 +203,14 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
 
     # tampilin timer
     if start_time is not None:
-        total_time = int(time.time() - start_time)
-        minutes = total_time // 60
-        seconds = total_time % 60
+        if turn_state in (WIN_SCREEN, GAME_OVER):
+            timer = total_time
+        else:
+            timer = time.time() - start_time
+
+        total_int = int(timer)
+        minutes = total_int // 60
+        seconds = total_int % 60
         timer_str = f"{minutes:02d}:{seconds:02d}"
         timer_font = pygame.font.SysFont("consolas", 35, bold=True)
         screen.blit(
@@ -232,10 +236,8 @@ def draw_game_over():
     font_small = pygame.font.SysFont("consolas", 20)
 
     text = font_big.render("GAME OVER", True, (240, 100, 100))
-    hint = font_small.render("Press M to return to menu", True, (220, 200, 200))
 
-    popup.blit(text, text.get_rect(center=(popup_width//2, popup_height//2 - 10)))
-    popup.blit(hint, hint.get_rect(center=(popup_width//2, popup_height//2 + 30)))
+    popup.blit(text, text.get_rect(center=(popup_width//2, popup_height//2)))
 
     screen.blit(
         popup,
@@ -268,6 +270,10 @@ def draw_win_screen(total_time): # Add total_time as a parameter
 # menghitung sisa dari manuscript yang belum diambil
 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 start_time = time.time() # Mulai timer
+total_time = 0
+end_screen_start = None
+end_screen_delay = 2
+
 # berjalannya game
 running = True
 while running:
@@ -275,60 +281,7 @@ while running:
         
         if event.type == pygame.QUIT:
             running = False
-
-        if turn_state == GAME_OVER:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_m:
-                    home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
-                    selected_difficulty = home_screen.run(screen)
-                    if selected_difficulty:
-                        current_difficulty = selected_difficulty
-                        grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
-                        running = True
-                        turn_state = PLAYER_PLANNING # Agar selalu player jalan pertama
-                        ghost_turn_start = None
-                        player_done = False 
-                        start_time = time.time()
-                        movement.reset_path()
-                        movement.is_moving = False
-                        movement.animation = 0
-                        movement.direction = "DOWN"
-                        movement.pixel_x = player_pos[1] * TILE_SIZE
-                        movement.pixel_y = player_pos[0] * TILE_SIZE
-
-                        manuscripts_left = sum(
-                            1 for r in range(GRID) for c in range(GRID)
-                            if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED]
-                        )
-                        running = True
-                        turn_state = PLAYER_PLANNING
-            continue
-
-        if turn_state == WIN_SCREEN:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-                home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
-                selected_difficulty = home_screen.run(screen)
-                if selected_difficulty:
-                    current_difficulty = selected_difficulty
-                    grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
-                    start_time = time.time()
-                    ghost_turn_start = None
-                    turn_state = PLAYER_PLANNING
-                    player_done = False 
-                    movement.reset_path()
-                    movement.is_moving = False
-                    movement.animation = 0
-                    movement.direction = "DOWN"
-                    movement.pixel_x = player_pos[1] * TILE_SIZE
-                    movement.pixel_y = player_pos[0] * TILE_SIZE
-                    manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
-                else:
-                    running = False #player berenti
-            continue         
-
-
-
-        
+              
         # ---------------- MOVEMENT INPUT ----------------
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and turn_state == PLAYER_PLANNING:
             mx, my = pygame.mouse.get_pos()
@@ -392,9 +345,6 @@ while running:
                 # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
                 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
-        
-
-
     player_done = movement.is_moving
     player_pos = movement.update(player_pos)
 
@@ -407,44 +357,13 @@ while running:
     elif grid[pr][pc] == MANUSCRIPT_SEALED:
         grid[pr][pc] = SEALED_FLOOR
         manuscripts_left -= 1
-    
-    if manuscripts_left <= 0:
-        if turn_state != WIN_SCREEN: # Only calculate time once
-            total_time = time.time() - start_time
+
+    if manuscripts_left <= 0 and turn_state not in (WIN_SCREEN, GAME_OVER):
+        end_screen_start = time.time()
+        total_time = time.time() - start_time
         turn_state = WIN_SCREEN
 
-        if turn_state == GAME_OVER:
-            draw_game_over()
-        elif turn_state == WIN_SCREEN: # NEW: Draw the Win Screen here
-            draw_win_screen(total_time)
-
-        pygame.display.flip()
-        pygame.time.delay(2000)
-
-        #Balik ke homescreen
-        home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
-        selected_difficulty = home_screen.run(screen)
-        if selected_difficulty:
-            current_difficulty = selected_difficulty
-            grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
-            start_time = time.time()
-            ghost_turn_start = None
-            running = True
-            turn_state = PLAYER_PLANNING
-            player_done = False 
-            movement.reset_path()
-            movement.is_moving = False
-            movement.animation = 0
-            movement.direction = "DOWN"
-            movement.pixel_x = player_pos[1] * TILE_SIZE
-            movement.pixel_y = player_pos[0] * TILE_SIZE
-
-            manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
-
-        else:
-            running = False #player berenti
-
-    if player_done and not movement.is_moving:
+    if player_done and not movement.is_moving and turn_state != WIN_SCREEN:
         turn_state = GHOST_MOVING
         ghost_turn_start = pygame.time.get_ticks()
 
@@ -470,6 +389,8 @@ while running:
                 ghost_last_move_time = now
 
                 if ghost_pos == player_pos:
+                    if end_screen_start is None:
+                        end_screen_start = time.time()
                     turn_state = GAME_OVER
         else:
             # Ghost selesai bergerak
@@ -481,10 +402,44 @@ while running:
     screen.fill((0,0,0))
     draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty)
     movement.draw_path(screen, GAME_OFFSET_X, GAME_OFFSET_Y)
+
     if turn_state == GAME_OVER:
         draw_game_over()
+    elif turn_state == WIN_SCREEN:
+        draw_win_screen(total_time)
+
     pygame.display.flip()
     clock.tick(30)
+
+    if turn_state in (GAME_OVER, WIN_SCREEN) and end_screen_start is not None: # Habis Win/Lose balik ke menu
+        if time.time() - end_screen_start >= end_screen_delay:
+            home_screen = HomeScreen(
+                WIDTH + SIDEBAR_WIDTH,
+                HEIGHT + TOP_BAR_HEIGHT
+            )
+            selected_difficulty = home_screen.run(screen)
+
+            if selected_difficulty:
+                current_difficulty = selected_difficulty
+                grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+
+                start_time = time.time()
+                end_screen_start = None
+                turn_state = PLAYER_PLANNING
+                ghost_turn_start = None
+                player_done = False
+
+                movement.reset_path()
+                movement.is_moving = False
+                movement.animation = 0
+                movement.direction = "DOWN"
+                movement.pixel_x = player_pos[1] * TILE_SIZE
+                movement.pixel_y = player_pos[0] * TILE_SIZE
+
+                manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
+
+            else:
+                running = False
 
 pygame.quit()
 sys.exit()
