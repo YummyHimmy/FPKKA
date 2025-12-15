@@ -8,6 +8,7 @@ from ghost_movements import astar
 GHOST_MAX_STEPS = 6
 GHOST_MOVING = 2
 GAME_OVER = 3
+WIN_SCREEN = 4
 ghost_path = []
 ghost_step_index = 0
 ghost_last_move_time = 0
@@ -240,7 +241,28 @@ def draw_game_over():
         popup,
         ((WIDTH - popup_width)//2, (HEIGHT - popup_height)//2)
     )
+# Create a new function near draw_game_over
+def draw_win_screen(total_time): # Add total_time as a parameter
+    minutes = int(total_time // 60)
+    seconds = int(total_time % 60)
+    time_str = f"{minutes}m {seconds}s"
+    
+    popup_width, popup_height = WIDTH // 2, HEIGHT // 3
+    popup_surface = pygame.Surface((popup_width, popup_height), pygame.SRCALPHA)
+    popup_surface.fill((30, 30, 40, 230))
+    win_font = pygame.font.SysFont("Consolas", 36, bold=True)
+    win_text = win_font.render("You Win!", True, (220, 180, 240))
+    time_font = pygame.font.SysFont("Consolas", 24, bold=True)
+    time_text = time_font.render(f"Time spent: {time_str}", True, (200, 200, 200))
+    hint_font = pygame.font.SysFont("consolas", 20)
+    hint = hint_font.render("Thank you", True, (220, 200, 200))
 
+    # Blit text onto popup_surface
+    popup_surface.blit(win_text, win_text.get_rect(center=(popup_width//2, popup_height//3)))
+    popup_surface.blit(time_text, time_text.get_rect(center=(popup_width//2, popup_height//2)))
+    popup_surface.blit(hint, hint.get_rect(center=(popup_width//2, 2 * popup_height//3))) # Add hint
+    
+    screen.blit(popup_surface, ((WIDTH - popup_width)//2, (HEIGHT - popup_height)//2))
 
 # MAIN
 # menghitung sisa dari manuscript yang belum diambil
@@ -262,6 +284,7 @@ while running:
                     if selected_difficulty:
                         current_difficulty = selected_difficulty
                         grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+                        running = True
                         turn_state = PLAYER_PLANNING # Agar selalu player jalan pertama
                         ghost_turn_start = None
                         player_done = False 
@@ -277,10 +300,35 @@ while running:
                             1 for r in range(GRID) for c in range(GRID)
                             if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED]
                         )
-
+                        running = True
                         turn_state = PLAYER_PLANNING
             continue
 
+        if turn_state == WIN_SCREEN:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
+                selected_difficulty = home_screen.run(screen)
+                if selected_difficulty:
+                    current_difficulty = selected_difficulty
+                    grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+                    start_time = time.time()
+                    ghost_turn_start = None
+                    turn_state = PLAYER_PLANNING
+                    player_done = False 
+                    movement.reset_path()
+                    movement.is_moving = False
+                    movement.animation = 0
+                    movement.direction = "DOWN"
+                    movement.pixel_x = player_pos[1] * TILE_SIZE
+                    movement.pixel_y = player_pos[0] * TILE_SIZE
+                    manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
+                else:
+                    running = False #player berenti
+            continue         
+
+
+
+        
         # ---------------- MOVEMENT INPUT ----------------
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and turn_state == PLAYER_PLANNING:
             mx, my = pygame.mouse.get_pos()
@@ -333,6 +381,7 @@ while running:
                 grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
                 ghost_turn_start = None
                 player_done = False 
+                running = True
                 turn_state = PLAYER_PLANNING
                 start_time = time.time()
                 # FIX #2: SYNC VISUALS AFTER REGEN (R/1/2/3)
@@ -360,32 +409,14 @@ while running:
         manuscripts_left -= 1
     
     if manuscripts_left <= 0:
-        total_time = time.time() - start_time
-        minutes = int(total_time // 60)
-        seconds = int(total_time % 60)
-        time_str = f"{minutes}m {seconds}s"
-        # Munculin pop up You Win
-        popup_width, popup_height = WIDTH // 2, HEIGHT // 3  
-        popup_surface = pygame.Surface((popup_width, popup_height), pygame.SRCALPHA)
-        popup_surface.fill((30, 30, 40, 230))
-        win_font = pygame.font.SysFont("Consolas", 36, bold=True)
-        win_text = win_font.render("You Win!", True, (220, 180, 240))
-        win_rect = win_text.get_rect(center=(popup_width//2, popup_height//3))
-        popup_surface.blit(win_text, win_rect)
-
-        time_font = pygame.font.SysFont("Consolas", 24, bold=True)
-        time_text = time_font.render(f"Time spent: {time_str}", True, (200, 200, 200))
-        time_rect = time_text.get_rect(center=(popup_width//2, 2 * popup_height//3))
-        popup_surface.blit(time_text, time_rect)
-        screen.blit(popup_surface, ((WIDTH - popup_width)//2, (HEIGHT - popup_height)//2))
-        
-        draw(grid, player_pos, ghost_pos, manuscripts_left, current_difficulty)
-        movement.draw_path(screen, GAME_OFFSET_X, GAME_OFFSET_Y)
-
+        if turn_state != WIN_SCREEN: # Only calculate time once
+            total_time = time.time() - start_time
+        turn_state = WIN_SCREEN
 
         if turn_state == GAME_OVER:
             draw_game_over()
-        
+        elif turn_state == WIN_SCREEN: # NEW: Draw the Win Screen here
+            draw_win_screen(total_time)
 
         pygame.display.flip()
         pygame.time.delay(2000)
@@ -398,6 +429,7 @@ while running:
             grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
             start_time = time.time()
             ghost_turn_start = None
+            running = True
             turn_state = PLAYER_PLANNING
             player_done = False 
             movement.reset_path()
@@ -441,6 +473,7 @@ while running:
                     turn_state = GAME_OVER
         else:
             # Ghost selesai bergerak
+            running = True
             turn_state = PLAYER_PLANNING
             ghost_path = []
         
