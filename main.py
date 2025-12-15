@@ -266,6 +266,47 @@ while running:
     player_done = movement.is_moving
     player_pos = movement.update(player_pos)
 
+    pr, pc = player_pos # pr = player row; pc = player column. Posisinya
+
+    if grid[pr][pc] == MANUSCRIPT:
+        grid[pr][pc] =FLOOR
+        manuscripts_left -= 1
+
+    elif grid[pr][pc] == MANUSCRIPT_SEALED:
+        grid[pr][pc] = SEALED_FLOOR
+        manuscripts_left -= 1
+    
+    if manuscripts_left <= 0:
+        # Munculin pop up You Win
+        popup_width, popup_height = WIDTH // 2, HEIGHT // 4  
+        popup_surface = pygame.Surface((popup_width, popup_height), pygame.SRCALPHA)
+        popup_surface.fill((30, 30, 40, 230))
+        font = pygame.font.SysFont("Consolas", 36, bold=True)
+        text = font.render("You Win!", True, (220, 180, 240))
+        text_rect = text.get_rect(center=(popup_width//2, popup_height//2))
+        popup_surface.blit(text, text_rect)
+        screen.blit(popup_surface, ((WIDTH - popup_width)//2, (HEIGHT - popup_height)//2))
+        pygame.display.flip()
+        pygame.time.delay(2000)
+
+        #Balik ke homescreen
+        home_screen = HomeScreen(WIDTH + SIDEBAR_WIDTH, HEIGHT + TOP_BAR_HEIGHT)
+        selected_difficulty = home_screen.run(screen)
+        if selected_difficulty:
+            current_difficulty = selected_difficulty
+            grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+            movement.reset_path()
+            movement.is_moving = False
+            movement.animation = 0
+            movement.direction = "DOWN"
+            movement.pixel_x = player_pos[1] * TILE_SIZE
+            movement.pixel_y = player_pos[0] * TILE_SIZE
+
+            manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
+
+        else:
+            running = False #player berenti
+
     if player_done and not movement.is_moving:
         turn_state = GHOST_MOVING
         ghost_turn_start = pygame.time.get_ticks()
