@@ -1,5 +1,5 @@
 import heapq
-from settings import GRID, WALL, WALL_SEALED
+from settings import GRID, SEALED_FLOOR, WALL_SEALED
 
 def heuristic(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
@@ -11,7 +11,7 @@ def get_neighbors(pos, grid):
     for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
         nr, nc = r + dr, c + dc
         if 0 <= nr < GRID and 0 <= nc < GRID:
-            if grid[nr][nc] not in [WALL, WALL_SEALED]:
+            if grid[nr][nc] not in [SEALED_FLOOR, WALL_SEALED]:
                 neighbors.append((nr, nc))
 
     return neighbors
