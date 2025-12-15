@@ -8,6 +8,7 @@ import map
 import level_controller # imports the difficulties setting
 from movement import Controller # import player control
 from home_screen import HomeScreen  # Import the home screen
+import time
 
 # Initialize game and window display
 pygame.init()
@@ -185,6 +186,18 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
         "M  : Main Menu"
     ]
 
+    # tampilin timer
+    if start_time is not None:
+        total_time = int(time.time() - start_time)
+        minutes = total_time // 60
+        seconds = total_time % 60
+        timer_str = f"{minutes:02d}:{seconds:02d}"
+        timer_font = pygame.font.SysFont("consolas", 35, bold=True)
+        screen.blit(
+            timer_font.render(f"Time: {timer_str}", True, (200, 200, 200)),
+            (sidebar_x + 28, y + 10)  
+        )
+
     y = TOP_BAR_HEIGHT + 52
     for c in controls:
         screen.blit(
@@ -196,7 +209,7 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
 # MAIN
 # menghitung sisa dari manuscript yang belum diambil
 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
-
+start_time = time.time() # Mulai timer
 # berjalannya game
 running = True
 while running:
@@ -231,6 +244,10 @@ while running:
                 if selected_difficulty:
                     current_difficulty = selected_difficulty
                     grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+                    turn_state = PLAYER_PLANNING # Agar selalu player jalan pertama
+                    ghost_turn_start = None
+                    player_done = False 
+                    start_time = time.time()
                     movement.reset_path()
                     movement.is_moving = False
                     movement.animation = 0
@@ -254,6 +271,10 @@ while running:
                 movement.direction = "DOWN"              
                 current_difficulty = result['difficulty']
                 grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+                ghost_turn_start = None
+                player_done = False 
+                turn_state = PLAYER_PLANNING
+                start_time = time.time()
 
                 # FIX #2: SYNC VISUALS AFTER REGEN (R/1/2/3)
                 # snaps sprite to new logic position
@@ -277,14 +298,26 @@ while running:
         manuscripts_left -= 1
     
     if manuscripts_left <= 0:
+        total_time = time.time() - start_time
+        minutes = int(total_time // 60)
+        seconds = int(total_time % 60)
+        time_str = f"{minutes}m {seconds}s"
+
         # Munculin pop up You Win
-        popup_width, popup_height = WIDTH // 2, HEIGHT // 4  
+        popup_width, popup_height = WIDTH // 2, HEIGHT // 3
         popup_surface = pygame.Surface((popup_width, popup_height), pygame.SRCALPHA)
         popup_surface.fill((30, 30, 40, 230))
-        font = pygame.font.SysFont("Consolas", 36, bold=True)
-        text = font.render("You Win!", True, (220, 180, 240))
-        text_rect = text.get_rect(center=(popup_width//2, popup_height//2))
-        popup_surface.blit(text, text_rect)
+
+        win_font = pygame.font.SysFont("Consolas", 36, bold=True)
+        win_text = win_font.render("You Win!", True, (220, 180, 240))
+        win_rect = win_text.get_rect(center=(popup_width//2, popup_height//3))
+        popup_surface.blit(win_text, win_rect)
+
+        time_font = pygame.font.SysFont("Consolas", 24, bold=True)
+        time_text = time_font.render(f"Time spent: {time_str}", True, (200, 200, 200))
+        time_rect = time_text.get_rect(center=(popup_width//2, 2 * popup_height//3))
+        popup_surface.blit(time_text, time_rect)
+
         screen.blit(popup_surface, ((WIDTH - popup_width)//2, (HEIGHT - popup_height)//2))
         pygame.display.flip()
         pygame.time.delay(2000)
@@ -295,6 +328,10 @@ while running:
         if selected_difficulty:
             current_difficulty = selected_difficulty
             grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+            start_time = time.time()
+            ghost_turn_start = None
+            turn_state = PLAYER_PLANNING
+            player_done = False 
             movement.reset_path()
             movement.is_moving = False
             movement.animation = 0
