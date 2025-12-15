@@ -5,7 +5,7 @@ import math
 import sys
 from settings import *
 from ghost_movements import astar
-GHOST_MAX_STEPS = 7
+GHOST_MAX_STEPS = 3
 GHOST_MOVING = 2
 GAME_OVER = 3
 ghost_path = []
@@ -346,7 +346,7 @@ while running:
         
 
 
-    player_done = movement.was_moving and not movement.is_moving
+    player_done = movement.is_moving
     player_pos = movement.update(player_pos)
 
     pr, pc = player_pos # pr = player row; pc = player column. Posisinya
@@ -385,7 +385,7 @@ while running:
 
         if turn_state == GAME_OVER:
             draw_game_over()
-
+        
 
         pygame.display.flip()
         pygame.time.delay(2000)
