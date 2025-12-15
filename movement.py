@@ -59,6 +59,7 @@ class Controller:
 
     # ---------- UPDATE ----------
     def update(self, player_pos):
+
         if not self.is_moving:
             return player_pos
 
