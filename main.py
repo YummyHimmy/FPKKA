@@ -235,6 +235,12 @@ while running:
                     movement.is_moving = False
                     movement.animation = 0
                     movement.direction = "DOWN"
+
+                    # FIX #1: SYNC VISUALS AFTER MENU RESET
+                    # # snaps sprite to new logic position
+                    movement.pixel_x = player_pos[1] * TILE_SIZE
+                    movement.pixel_y = player_pos[0] * TILE_SIZE
+
                     manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
             
@@ -248,6 +254,12 @@ while running:
                 movement.direction = "DOWN"              
                 current_difficulty = result['difficulty']
                 grid, player_pos, ghost_pos = map.generate_map(current_difficulty)
+
+                # FIX #2: SYNC VISUALS AFTER REGEN (R/1/2/3)
+                # snaps sprite to new logic position
+                movement.pixel_x = player_pos[1] * TILE_SIZE
+                movement.pixel_y = player_pos[0] * TILE_SIZE
+
                 # UPDATE: there was a bug of which was just counting manuscript in Regular Floor
                 manuscripts_left = sum(1 for r in range(GRID) for c in range(GRID) if grid[r][c] in [MANUSCRIPT, MANUSCRIPT_SEALED])
 
