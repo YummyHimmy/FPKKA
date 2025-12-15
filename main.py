@@ -5,7 +5,7 @@ import math
 import sys
 from settings import *
 from ghost_movements import astar
-GHOST_MAX_STEPS = 3
+GHOST_MAX_STEPS = 6
 GHOST_MOVING = 2
 GAME_OVER = 3
 ghost_path = []
