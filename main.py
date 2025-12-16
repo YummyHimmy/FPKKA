@@ -196,9 +196,8 @@ def draw(grid, player_pos, ghost_pos, manuscripts_left, curr_diff):
         "Click  : Place movement dot",
         "ENTER  : Confirm move",
         "Z      : Reset path",
-        #"R      : Regenerate map",
         "ESC    : Quit game",
-        "M  : Main Menu"
+        "M      : Main Menu"
     ]
 
     # tampilin timer
