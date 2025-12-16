@@ -21,7 +21,7 @@ class Controller:
     def is_adjacent(self, a, b):
         ar, ac = a
         br, bc = b
-        return max(abs(ar - br), abs(ac - bc)) == 1  # diagonal allowed
+        return max(abs(ar - br), abs(ac - bc)) == 1  # Diagonal allowed
 
     def is_walkable(self, grid, r, c):
         return grid[r][c] in [
@@ -31,24 +31,24 @@ class Controller:
 
     # ---------- INPUT ----------
     def handle_mouse_click(self, pos, grid, player_pos):
-        if self.is_moving:
+        if self.is_moving: # block input when moving
             return
 
-        mx, my = pos
-        r = my // TILE_SIZE
+        mx, my = pos # Mouse pixel coordinate
+        r = my // TILE_SIZE # Tile grid coordinate
         c = mx // TILE_SIZE
 
-        if not (0 <= r < GRID and 0 <= c < GRID):
+        if not (0 <= r < GRID and 0 <= c < GRID): # Disallow out of bond click
             return
 
-        if not self.is_walkable(grid, r, c):
+        if not self.is_walkable(grid, r, c): # Disallow click on wall
             return
 
         if len(self.path) == 0:
-            if self.is_adjacent(player_pos, (r, c)):
+            if self.is_adjacent(player_pos, (r, c)): # Dot must be adjacent to player
                 self.path.append((r, c))
         else:
-            if len(self.path) < MAX_STEPS and self.is_adjacent(self.path[-1], (r, c)):
+            if len(self.path) < MAX_STEPS and self.is_adjacent(self.path[-1], (r, c)): # Dot must be adjacent to other dot
                 self.path.append((r, c))
 
     def confirm_move(self):
@@ -72,10 +72,10 @@ class Controller:
 
         if self.is_moving:
             if self.target_x is None:
-                nr, nc = self.path[self.move_index]
+                nr, nc = self.path[self.move_index] # Target coordinate for next step
 
                 # --- SET DIRECTION HERE ---
-                cr, cc = player_pos
+                cr, cc = player_pos # Curr avatar coordinate
                 dr = nr - cr
                 dc = nc - cc
 
@@ -107,19 +107,17 @@ class Controller:
             self.pixel_x += (self.target_x - self.pixel_x) * t
             self.pixel_y += (self.target_y - self.pixel_y) * t
 
-            if t >= 1:
+            if t >= 1: # Reset the traget pixel coordinate when arrived at each dot
                 player_pos = self.path[self.move_index]
-                self.move_index += 1
+                self.move_index += 1 # Increment step taken
                 self.target_x = None
                 self.target_y = None
 
-                if self.move_index >= len(self.path):
+                if self.move_index >= len(self.path): # If the avatar has reached last dot
                     self.path.clear()
                     self.is_moving = False
                     self.animation = 0
                     self.direction = "DOWN"
-      
-        self.animation = pygame.time.get_ticks() // 4098
             
         return player_pos
 
@@ -130,7 +128,7 @@ class Controller:
 
     # ---------- DRAW ----------
     def draw_path(self, screen, offset_x=0, offset_y=0):    
-        if self.is_moving: # Kalau jalan titiknya hilang
+        if self.is_moving: # Remove dot when moving
             return
         
         for r, c in self.path:
